@@ -11,6 +11,7 @@ import math
 class TurtleBotNavigator:
     def __init__(self):
         rospy.init_node('tbot3_navi', anonymous=True)
+        num_avoid=0
         # パブリッシャー
         self.cmd_vel_pub = rospy.Publisher('/cmd_vel', Twist, queue_size=10)
 
@@ -24,7 +25,7 @@ class TurtleBotNavigator:
 
     def scan_callback(self, msg):
         # 障害物が近くにあるかどうかを確認
-        #rospy.loginfo("scan")
+        rospy.loginfo("scan")
         # print(msg.ranges)
         # print(min(msg.ranges) )
         # 前方180度の範囲を抽出
@@ -35,21 +36,22 @@ class TurtleBotNavigator:
         start_index = int(0-45)
         end_index = int(0+45)
 
-        # 前方180度の範囲のデータを抽出
+        # 前方60度の範囲のデータを抽出
         front_data = msg.ranges[-30::30]   
 
-        if min(front_data)< 0.2:
+        if min(front_data)< 0.5:
             self.avoid_obstacle()
         else:
             move_cmd = Twist()
             move_cmd.linear.x = 0.1   # 前進停止
             move_cmd.angular.z = 0 #  回転（例）
             # パブリッシュ
-            self.cmd_vel_pub.publish(move_cmd)  
+            #self.cmd_vel_pub.publish(move_cmd)  
 
     def avoid_obstacle(self):
         # 障害物を避ける動作を実装
-        rospy.loginfo("avoid")
+        rospy.loginfo("avoid {}",num_avoid)
+        num_avoid = num_avoid + 1
         move_cmd = Twist()
         move_cmd.linear.x = 0.0   # 前進停止
         move_cmd.angular.z = 0.5 #  回転（例）
@@ -63,7 +65,7 @@ class TurtleBotNavigator:
         current_x = msg.pose.pose.position.x
         current_y = msg.pose.pose.position.y
 
-        goal_x = current_x + 5 # 2メートル前進
+        goal_x = current_x + 2 # 2メートル前進
         goal_y = current_y
 
         self.move_to_goal(goal_x, goal_y)
@@ -89,6 +91,13 @@ class TurtleBotNavigator:
 
     def navigate_forever(self):
         rate = rospy.Rate(5)  # 5Hz
+
+        move_cmd = Twist()
+        move_cmd.linear.x = 0.02   # 前進停止
+        move_cmd.angular.z = 0 #  回転（例）
+        # パブリッシュ
+        self.cmd_vel_pub.publish(move_cmd)  
+
         while not rospy.is_shutdown():
             # self.move_to_goal(0.0, 0.0)  # 中央に戻る
             # self.move_to_goal(1.0, 1.0)  # 中央に戻る
