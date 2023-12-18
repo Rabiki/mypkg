@@ -4,12 +4,14 @@
 #
 #
 #pa#
+import time
 import rospy
 from geometry_msgs.msg import Twist         # move_base/goal
 from geometry_msgs.msg import PoseStamped   # move_base_simple/goal
 from sensor_msgs.msg import LaserScan
 from nav_msgs.msg import Odometry
 from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal,MoveBaseResult
+from actionlib_msgs.msg import GoalStatusArray
 import actionlib
 import math
 
@@ -17,14 +19,14 @@ class TurtleBotNavigator:
     def __init__(self):
         rospy.init_node('tbot3_navi', anonymous=True)
         self.num_avoid=0
-        self.goal_result=MoveBaseResult()
+        self.goal_result=GoalStatusArray()
         # パブリッシャー
         # self.cmd_vel_pub = rospy.Publisher('/cmd_vel', Twist, queue_size=10)
 
         # サブスクライバー
         rospy.Subscriber('/scan', LaserScan, self.scan_callback)
-        rospy.Subscriber('/odom', Odometry, self.odom_callback)
-        rospy.Subscriber('/move_bese/result',MoveBaseResult, self.goal_result_callback)
+        # rospy.Subscriber('/odom', Odometry, self.odom_callback)
+        rospy.Subscriber('/move_base/status',GoalStatusArray , self.goal_result_callback)
         self.goal_pub = rospy.Publisher('move_base_simple/goal' , PoseStamped , queue_size=100)        
 
         # ナビゲーションのアクションクライアント
@@ -33,11 +35,13 @@ class TurtleBotNavigator:
 
 
     def goal_result_callback(self,msg):
-        rospy.loginfo("result")
-        self.goal_result=msg
-        rospy.loginfo(self.goal_result)       
-        if self.goal_result==3:
-            rospy.loginf("GOAL!")
+        self.goal_result=msg        
+        rospy.loginfo(self.goal_result.status_list[0].status)
+        #rospy.loginfo(self.goal_result.status_list[0].status)       
+        if self.goal_result.status_list[0].status==3:
+            rospy.loginfo("GOAL! & Set Next Goal")
+            self.move_to_goal(-2.0,-1.0)
+            time.sleep(1)
         # resultgoal=msg.
 
 
