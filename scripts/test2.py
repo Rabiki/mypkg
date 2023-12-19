@@ -29,6 +29,10 @@ class TurtleBotNavigator:
         self.new_goal_x  = 0
         self.new_goal_y  = 0
         self.new_goal_rot_w  = 0
+        self.qx = 0
+        self.qy = 0
+        self.qz = 0
+        self.qw = 0
         self.initpos     = Odometry()
         self.initpos_turtle = PoseWithCovarianceStamped()
 
@@ -53,15 +57,13 @@ class TurtleBotNavigator:
             self.goal_result=msg      
             for goal_st in msg.status_list:
                 #rospy.loginfo(goal_st.status) 
-                self.goal_status = goal_st.status                               # 最新ステータスを取得
+                self.goal_status = goal_st.status            # 最新ステータスを取得
             if self.goal_status==3:
                 rospy.loginfo("GOAL! & Set Next Goal")
-                #self.move_to_goal(-2.0,-1.0)                                    # ここで、有効なゴールを毎回設定する　乱数で？広さはわかる？有効ゴールか？
                 self.goal_make()                
                 self.move_to_goal(self.new_goal_x,self.new_goal_y,self.new_goal_rot_w)                                    
             if self.goal_status==4:
                 rospy.loginfo("retry make goal")
-                #self.move_to_goal(-2.0,-1.0)                                    # ここで、有効なゴールを毎回設定する　乱数で？広さはわかる？有効ゴールか？
                 self.goal_make()                
                 self.move_to_goal(self.new_goal_x,self.new_goal_y,self.new_goal_rot_w)                                    
 
@@ -82,24 +84,27 @@ class TurtleBotNavigator:
             self.odom_enable = 0
             #rospy.loginfo(self.initpos)
 
-    # def quaternion_from_yaw(self, yaw):
-    #     qw = math.cos(yaw / 2.0)
-    #     qx = 0.0
-    #     qy = 0.0
-    #     qz = math.sin(yaw / 2.0)
-    #     return [qx, qy, qz, qw]
+    def quaternion_from_yaw(self, yaw):
+        self.qw = math.cos(yaw / 2.0)
+        self.qx = 0.0
+        self.qy = 0.0
+        self.qz = math.sin(yaw / 2.0)
 
     def move_to_goal(self, x, y, w):
         rospy.loginfo("move_to_goal")
-
+        self.quaternion_from_yaw(w)
         goal = PoseStamped()
         goal.header.frame_id = "map"
         goal.header.stamp = rospy.Time.now()
         goal.pose.position.x = x
         goal.pose.position.y = y        
-        goal.pose.orientation.w = w
+        goal.pose.orientation.x = self.qx
+        goal.pose.orientation.y = self.qy
+        goal.pose.orientation.z = self.qz
+        goal.pose.orientation.w = self.qw                
         rospy.loginfo("Sending goal...")
         self.goal_pub.publish(goal)
+
 
     def navigate_forever(self):
         rospy.loginfo("Start Navi")
