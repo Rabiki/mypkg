@@ -3,7 +3,7 @@
 # 
 # export TURTLEBOT3_MODEL=burger
 # source /opt/ros/noetic/setup.bash
-# source ~/ros_catkin_ws/devel/setup.bash  #自分のワークスペースのでdevel/setup.bashをソース
+# source ~/ros_catkin_ws/devel/setup.bash  #自分のワークスペースでdevel/setup.bashをソース
 # それぞれ別端末で実行
 # roscore
 #
