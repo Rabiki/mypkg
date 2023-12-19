@@ -9,12 +9,15 @@ import rospy
 from geometry_msgs.msg import Twist                       # move_base/goal
 from geometry_msgs.msg import PoseStamped                 # move_base_simple/goal
 from geometry_msgs.msg import PoseWithCovarianceStamped   # move_base_simple/goal
+from geometry_msgs.msg import Point, Quaternion
 from sensor_msgs.msg import LaserScan
 from nav_msgs.msg import Odometry
 from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal,MoveBaseResult
 from actionlib_msgs.msg import GoalStatusArray
 import actionlib
 import math
+import random
+from random import randint, randrange, random, uniform
 
 class TurtleBotNavigator:
     def __init__(self):
@@ -23,6 +26,9 @@ class TurtleBotNavigator:
         self.odom_enable = 1
         self.target_set  = 0
         self.goal_status = 0
+        self.new_goal_x  = 0
+        self.new_goal_y  = 0
+        self.new_goal_rot_w  = 0
         self.initpos     = Odometry()
         self.initpos_turtle = PoseWithCovarianceStamped()
 
@@ -52,11 +58,26 @@ class TurtleBotNavigator:
             #rospy.loginfo(self.goal_result.status_list[0].status)       
             if self.goal_status==3:
                 rospy.loginfo("GOAL! & Set Next Goal")
-                self.move_to_goal(-2.0,-1.0)                                    # ここで、有効なゴールを毎回設定する　乱数で？広さはわかる？有効ゴールか？
-                time.sleep(1)
+                #self.move_to_goal(-2.0,-1.0)                                    # ここで、有効なゴールを毎回設定する　乱数で？広さはわかる？有効ゴールか？
+                self.goal_make()                
+                self.move_to_goal(self.new_goal_x,self.new_goal_y,self.new_goal_rot_w)                                    
+            if self.goal_status==4:
+                rospy.loginfo("retry make goal")
+                #self.move_to_goal(-2.0,-1.0)                                    # ここで、有効なゴールを毎回設定する　乱数で？広さはわかる？有効ゴールか？
+                self.goal_make()                
+                self.move_to_goal(self.new_goal_x,self.new_goal_y,self.new_goal_rot_w)                                    
+                #time.sleep(1)
             # resultgoal=msg.
 
-
+    def goal_make(self):
+        self.new_goal_x = 0.1*randint(-20,20)
+        self.new_goal_y = 0.1*randint(-20,20)
+        self.new_goal_rot_w = 0.1*randint(-10,10)
+        rospy.loginfo("new goal")
+        rospy.loginfo(self.new_goal_x)
+        rospy.loginfo(self.new_goal_y)
+        rospy.loginfo(self.new_goal_rot_w)
+        # 座標チェックをいれたいけど・・・
 
     # def simgo_callback(self, msg):
     #     rospy.loginfo("simgo")
@@ -92,12 +113,12 @@ class TurtleBotNavigator:
 
     def odom_callback(self, msg):
         if self.odom_enable==1 :
-            rospy.loginfo("odom")
+            #rospy.loginfo("odom")
             self.initpos=msg
             self.odom_enable = 0
-            rospy.loginfo(self.initpos)
+            #rospy.loginfo(self.initpos)
 
-    def move_to_goal(self, x, y):
+    def move_to_goal(self, x, y, w):
         rospy.loginfo("move_to_goal")
 
         goal = PoseStamped()
@@ -105,7 +126,7 @@ class TurtleBotNavigator:
         goal.header.stamp = rospy.Time.now()
         goal.pose.position.x = x
         goal.pose.position.y = y        
-        goal.pose.orientation.w = 1.0
+        goal.pose.orientation = Quaternion(0.0, 0.0, 0.0, w)
 
         rospy.loginfo("Sending goal...")
         self.goal_pub.publish(goal)
@@ -139,7 +160,7 @@ class TurtleBotNavigator:
         move_cmd.angular.z = 0 #  回転（例）
         # パブリッシュ
         # self.cmd_vel_pub.publish(move_cmd)  
-        self.move_to_goal(2.0,1.0)
+        self.move_to_goal(2.0,1.0,1.0)
         self.target_set = 1
         while not rospy.is_shutdown():
             # self.move_to_goal(0.0, 0.0)  # 中央に戻る
