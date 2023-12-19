@@ -6,8 +6,9 @@
 #pa#
 import time
 import rospy
-from geometry_msgs.msg import Twist         # move_base/goal
-from geometry_msgs.msg import PoseStamped   # move_base_simple/goal
+from geometry_msgs.msg import Twist                       # move_base/goal
+from geometry_msgs.msg import PoseStamped                 # move_base_simple/goal
+from geometry_msgs.msg import PoseWithCovarianceStamped   # move_base_simple/goal
 from sensor_msgs.msg import LaserScan
 from nav_msgs.msg import Odometry
 from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal,MoveBaseResult
@@ -18,31 +19,38 @@ import math
 class TurtleBotNavigator:
     def __init__(self):
         rospy.init_node('tbot3_navi', anonymous=True)
-        self.num_avoid=0
-        self.goal_result=GoalStatusArray()
+        self.num_avoid   = 0
+        self.odom_enable = 1
+        self.target_set  = 0
+        self.initpos     = Odometry()
+        self.initpos_turtle = PoseWithCovarianceStamped()
+
         # パブリッシャー
-        # self.cmd_vel_pub = rospy.Publisher('/cmd_vel', Twist, queue_size=10)
+        self.initpos_pub = rospy.Publisher('/initialpose', PoseWithCovarianceStamped, queue_size=10)           # 初期位置の設定用
+        self.goal_pub = rospy.Publisher('move_base_simple/goal' , PoseStamped , queue_size=100)                # 目標設定用 
 
         # サブスクライバー
         rospy.Subscriber('/scan', LaserScan, self.scan_callback)
-        # rospy.Subscriber('/odom', Odometry, self.odom_callback)
-        rospy.Subscriber('/move_base/status',GoalStatusArray , self.goal_result_callback)
-        self.goal_pub = rospy.Publisher('move_base_simple/goal' , PoseStamped , queue_size=100)        
-
+        rospy.Subscriber('/odom', Odometry, self.odom_callback)                                                 # 今の位置を取得
+        rospy.Subscriber('/move_base/status',GoalStatusArray , self.goal_result_callback)                       # 到着判定
+        
+    
         # ナビゲーションのアクションクライアント
         self.move_base_client = actionlib.SimpleActionClient('move_base', MoveBaseAction)
         self.move_base_client.wait_for_server()
 
 
     def goal_result_callback(self,msg):
-        self.goal_result=msg        
-        rospy.loginfo(self.goal_result.status_list[0].status)
-        #rospy.loginfo(self.goal_result.status_list[0].status)       
-        if self.goal_result.status_list[0].status==3:
-            rospy.loginfo("GOAL! & Set Next Goal")
-            self.move_to_goal(-2.0,-1.0)
-            time.sleep(1)
-        # resultgoal=msg.
+        if self.target_set ==1:
+            self.goal_result=GoalStatusArray()
+            self.goal_result=msg        
+            rospy.loginfo(self.goal_result.status_list[0].status)              # index error がでる。最初は用意されていないようだ。
+            #rospy.loginfo(self.goal_result.status_list[0].status)       
+            if self.goal_result.status_list[0].status==3:
+                rospy.loginfo("GOAL! & Set Next Goal")
+                self.move_to_goal(-2.0,-1.0)
+                time.sleep(1)
+            # resultgoal=msg.
 
 
 
@@ -79,15 +87,11 @@ class TurtleBotNavigator:
         pass
 
     def odom_callback(self, msg):
-        rospy.loginfo("odom")
-        # ロボットの位置を確認して目標地点を設定
-        current_x = msg.pose.pose.position.x
-        current_y = msg.pose.pose.position.y
-
-        goal_x = current_x + 0.2 # 2メートル前進
-        goal_y = current_y 
-
-        # self.move_to_goal(goal_x, goal_y)
+        if self.odom_enable==1 :
+            rospy.loginfo("odom")
+            self.initpos=msg
+            self.odom_enable = 0
+            rospy.loginfo(self.initpos)
 
     def move_to_goal(self, x, y):
         rospy.loginfo("move_to_goal")
@@ -107,37 +111,24 @@ class TurtleBotNavigator:
         rospy.loginfo("OK")
         # self.goal_pub.wait_for_result()
 
-        # if self.goal_pub.get_state() == actionlib.GoalStatus.SUCCEEDED:
-        #     rospy.loginfo("Goal reached!")
-
-        # goal = MoveBaseGoal()
-        # goal.target_pose.header.frame_id = 'map'
-        # goal.target_pose.header.stamp = rospy.Time.now()
-
-        # goal.target_pose.pose.position.x = x
-        # goal.target_pose.pose.position.y = y
-        # goal.target_pose.pose.orientation.w = 1.0
-
-        # rospy.loginfo("Sending goal...")
-        # self.move_base_client.send_goal(goal)
-        # self.move_base_client.wait_for_result()
-
-        # if self.move_base_client.get_state() == actionlib.GoalStatus.SUCCEEDED:
-        #     rospy.loginfo("Goal reached!")
-        #     # ロボットの位置を確認して目標地点を設定
-        #     current_x = msg.pose.pose.position.x
-        #     current_y = msg.pose.pose.position.y
-
-        #     goal_x = current_x + 0.1 # 2メートル前進
-        #     goal_y = current_y 
-
-        #     self.move_to_goal(goal_x, goal_y)
-          
-        # else:
-        #     rospy.loginfo("Failed to reach goal.")
-
     def navigate_forever(self):
+        rospy.loginfo("Start Navi")
         rate = rospy.Rate(50)  # 5Hz
+        while not self.odom_enable==0:
+            time.sleep(1)
+        rospy.loginfo("Set Initial Pose") # 
+
+        self.initpos_turtle.header.stamp = rospy.Time.now()
+        self.initpos_turtle.header.frame_id = "map"
+        # self.initpos_turtle.pose.pose.position.x    = -2.0 
+        # self.initpos_turtle.pose.pose.position.y    = -0.5
+        # self.initpos_turtle.pose.pose.position.z    = 0.0
+        # self.initpos_turtle.pose.pose.orientation.w = 1.0
+        self.initpos_turtle.pose.pose.position.x    = self.initpos.pose.pose.position.x 
+        self.initpos_turtle.pose.pose.position.y    = self.initpos.pose.pose.position.y 
+        self.initpos_turtle.pose.pose.position.z    = self.initpos.pose.pose.position.z 
+        self.initpos_turtle.pose.pose.orientation.w = self.initpos.pose.pose.orientation.w
+        self.initpos_pub.publish(self.initpos_turtle)
 
         move_cmd = Twist()
         move_cmd.linear.x = 0.5   # 前進停止
@@ -145,7 +136,7 @@ class TurtleBotNavigator:
         # パブリッシュ
         # self.cmd_vel_pub.publish(move_cmd)  
         self.move_to_goal(2.0,1.0)
-
+        self.target_set = 1
         while not rospy.is_shutdown():
             # self.move_to_goal(0.0, 0.0)  # 中央に戻る
             # self.move_to_goal(1.0, 1.0)  # 中央に戻る
