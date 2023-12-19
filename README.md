@@ -1,5 +1,6 @@
 # 
 # 起動順
+# noeticを使いました。
 # 
 # export TURTLEBOT3_MODEL=burger
 # source /opt/ros/noetic/setup.bash
