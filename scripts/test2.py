@@ -22,6 +22,7 @@ class TurtleBotNavigator:
         self.num_avoid   = 0
         self.odom_enable = 1
         self.target_set  = 0
+        self.goal_status = 0
         self.initpos     = Odometry()
         self.initpos_turtle = PoseWithCovarianceStamped()
 
@@ -30,7 +31,7 @@ class TurtleBotNavigator:
         self.goal_pub = rospy.Publisher('move_base_simple/goal' , PoseStamped , queue_size=100)                # 目標設定用 
 
         # サブスクライバー
-        rospy.Subscriber('/scan', LaserScan, self.scan_callback)
+        # rospy.Subscriber('/scan', LaserScan, self.scan_callback)
         rospy.Subscriber('/odom', Odometry, self.odom_callback)                                                 # 今の位置を取得
         rospy.Subscriber('/move_base/status',GoalStatusArray , self.goal_result_callback)                       # 到着判定
         
@@ -43,48 +44,51 @@ class TurtleBotNavigator:
     def goal_result_callback(self,msg):
         if self.target_set ==1:
             self.goal_result=GoalStatusArray()
-            self.goal_result=msg        
-            rospy.loginfo(self.goal_result.status_list[0].status)              # index error がでる。最初は用意されていないようだ。
+            self.goal_result=msg      
+            for goal_st in msg.status_list:
+                #rospy.loginfo(goal_st.status) 
+                self.goal_status = goal_st.status                               # 最新ステータスを取得
+            #rospy.loginfo(self.goal_result.status_list[0].status)              # index error がでる。最初は用意されていないようだ。
             #rospy.loginfo(self.goal_result.status_list[0].status)       
-            if self.goal_result.status_list[0].status==3:
+            if self.goal_status==3:
                 rospy.loginfo("GOAL! & Set Next Goal")
-                self.move_to_goal(-2.0,-1.0)
+                self.move_to_goal(-2.0,-1.0)                                    # ここで、有効なゴールを毎回設定する　乱数で？広さはわかる？有効ゴールか？
                 time.sleep(1)
             # resultgoal=msg.
 
 
 
-    def simgo_callback(self, msg):
-        rospy.loginfo("simgo")
-        pass 
+    # def simgo_callback(self, msg):
+    #     rospy.loginfo("simgo")
+    #     pass 
         
 
-    def scan_callback(self, msg):
-        # 障害物が近くにあるかどうかを確認        #rospy.loginfo("scan")
+    # def scan_callback(self, msg):
+    #     # 障害物が近くにあるかどうかを確認        #rospy.loginfo("scan")
 
-        # 前方60度の範囲のデータを抽出
-        front_data = msg.ranges[-30::30]   
+    #     # 前方60度の範囲のデータを抽出
+    #     front_data = msg.ranges[-30::30]   
 
-        if min(front_data)< 0.5:
-            self.avoid_obstacle()
-        # else:
-        #     move_cmd = Twist()
-        #     move_cmd.linear.x = 0.1   # 前進停止
-        #     move_cmd.angular.z = 0 #  回転（例）
-        #     # パブリッシュ
-        #     #self.cmd_vel_pub.publish(move_cmd)  
+    #     if min(front_data)< 0.5:
+    #         self.avoid_obstacle()
+    #     # else:
+    #     #     move_cmd = Twist()
+    #     #     move_cmd.linear.x = 0.1   # 前進停止
+    #     #     move_cmd.angular.z = 0 #  回転（例）
+    #     #     # パブリッシュ
+    #     #     #self.cmd_vel_pub.publish(move_cmd)  
         
-    def avoid_obstacle(self):
-        # 障害物を避ける動作を実装
-        #rospy.loginfo("avoid {}",num_avoid)
-        # num_avoid = num_avoid + 1
-        # move_cmd = Twist()
-        # move_cmd.linear.x = 0.0   # 前進停止
-        # move_cmd.angular.z = 0.1 #  回転（例）
+    # def avoid_obstacle(self):
+    #     # 障害物を避ける動作を実装
+    #     #rospy.loginfo("avoid {}",num_avoid)
+    #     # num_avoid = num_avoid + 1
+    #     # move_cmd = Twist()
+    #     # move_cmd.linear.x = 0.0   # 前進停止
+    #     # move_cmd.angular.z = 0.1 #  回転（例）
 
-        # # パブリッシュ
-        # self.cmd_vel_pub.publish(move_cmd)
-        pass
+    #     # # パブリッシュ
+    #     # self.cmd_vel_pub.publish(move_cmd)
+    #     pass
 
     def odom_callback(self, msg):
         if self.odom_enable==1 :
@@ -108,7 +112,7 @@ class TurtleBotNavigator:
         #while not self.goal_result==3:
             #rospy.loginfo(self.goal_result)
         #    pass
-        rospy.loginfo("OK")
+        # rospy.loginfo("OK")
         # self.goal_pub.wait_for_result()
 
     def navigate_forever(self):
