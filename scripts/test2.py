@@ -108,7 +108,7 @@ class TurtleBotNavigator:
 
     def navigate_forever(self):
         rospy.loginfo("Start Navi")
-        rate = rospy.Rate(50)  # 5Hz
+        rate = rospy.Rate(50)  # 50Hz
         while not self.odom_enable==0:
             time.sleep(1)
         rospy.loginfo("Set Initial Pose") # 
